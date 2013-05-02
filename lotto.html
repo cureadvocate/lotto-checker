@@ -1,0 +1,433 @@
+<html>
+<head>
+<style type="text/css">
+	#numbersPane div { padding-bottom: 1em; }
+	#numbersPane div a { font-size: small; }
+	#numbersPane div input, #numbersPane div textarea { display: block; }
+	.show { position: absolute; top: 1em; left: 1em; display: block; }
+	.hide { display: none; }
+	.winners { position: relative; left: 3em; }
+</style>
+<script src="jquery.js"></script>
+<script type="text/javascript">
+	var lotto = { powerball: 0, megamillions: 1, palmetto5: 2, cash6: 3 };
+	var savedNums = new Array();
+	
+	//This prototype is provided by the Mozilla foundation and
+	//is distributed under the MIT license.
+	//http://www.ibiblio.org/pub/Linux/LICENSES/mit.license
+
+	if (!Array.prototype.forEach)
+	{
+	  Array.prototype.forEach = function(fun /*, thisp*/)
+	  {
+	    var len = this.length;
+	    if (typeof fun != "function")
+	      throw new TypeError();
+
+	    var thisp = arguments[1];
+	    for (var i = 0; i < len; i++)
+	    {
+	      if (i in this)
+	        fun.call(thisp, this[i], i, this);
+	    }
+	  };
+
+	  Array.prototype.filter = function(fun /*, thisp*/)
+	  {
+	    var len = this.length;
+	    if (typeof fun != "function")
+	      throw new TypeError();
+
+	    var res = new Array();
+	    var thisp = arguments[1];
+	    for (var i = 0; i < len; i++)
+	    {
+	      if (i in this)
+	      {
+	        var val = this[i]; // in case fun mutates this
+	        if (fun.call(thisp, val, i, this))
+	          res.push(val);
+	      }
+	    }
+
+	    return res;
+	  };
+	  
+	  Array.prototype.indexOf = function(elt /*, from*/)
+	  {
+	    var len = this.length;
+
+	    var from = Number(arguments[1]) || 0;
+	    from = (from < 0)
+	         ? Math.ceil(from)
+	         : Math.floor(from);
+	    if (from < 0)
+	      from += len;
+
+	    for (; from < len; from++)
+	    {
+	      if (from in this &&
+	          this[from] === elt)
+	        return from;
+	    }
+	    return -1;
+	  };
+	}
+
+	function createCookie(name,value,days) {
+		if (days) {
+			var date = new Date();
+			date.setTime(date.getTime()+(days*24*60*60*1000));
+			var expires = "; expires="+date.toGMTString();
+		}
+		else var expires = "";
+		document.cookie = name+"="+value+expires+"; path=/";
+	}
+
+	function readCookie(name) {
+		var nameEQ = name + "=";
+		var ca = document.cookie.split(';');
+		for(var i=0;i < ca.length;i++) {
+			var c = ca[i];
+			while (c.charAt(0)==' ') c = c.substring(1,c.length);
+			if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+		}
+		return null;
+	}
+	
+	function switchPanes() {
+		$("#winPane").toggleClass('show').toggleClass('hide');
+		$("#numbersPane").toggleClass('show').toggleClass('hide');
+	}
+	
+	function addInput(id) {
+		switch (id) {
+			case 'powerballnums':
+				$("<input type='text' />").appendTo('#powerballnums');
+				break;
+			case 'megamillionsnums':
+				$("<input type='text' />").appendTo('#megamillionsnums');
+				break;
+			case 'palmetto5nums':
+				$("<input type='text' />").appendTo('#palmetto5nums');
+				break;
+			case 'cash6nums':
+				$("<textarea rows='3' cols='20' />").appendTo('#cash6nums');
+				break;
+		}
+	}
+	
+	function removeInput(id) {
+		switch (id) {
+			case 'powerballnums':
+				$('#powerballnums input:last').remove();
+				break;
+			case 'megamillionsnums':
+				$('#megamillionsnums input:last').remove();
+				break;
+			case 'palmetto5nums':
+				$('#palmetto5nums input:last').remove();
+				break;
+			case 'cash6nums':
+				$('#cash6nums textarea:last').remove();
+				break;
+		}
+	}
+	
+	function setup() {
+		// load saved numbers, if available
+		if (loadNumbers()) {
+			// add inputs
+			if (savedNums[lotto['powerball']].length && (savedNums[lotto['powerball']].length > 0)) {
+				for (var i=0; i<savedNums[lotto['powerball']].length; i++) {
+					$("<input type='text' />").val( savedNums[lotto['powerball']][i] ).appendTo('#powerballnums');
+				}
+			}
+			if (savedNums[lotto['palmetto5']].length && (savedNums[lotto['palmetto5']].length > 0)) {
+				for (var i=0; i<savedNums[lotto['palmetto5']].length; i++) {
+					$("<input type='text' />").val( savedNums[lotto['palmetto5']][i] ).appendTo('#palmetto5nums');
+				}
+			}
+			if (savedNums[lotto['megamillions']].length && (savedNums[lotto['megamillions']].length > 0)) {
+				for (var i=0; i<savedNums[lotto['megamillions']].length; i++) {
+					$("<input type='text' />").val( savedNums[lotto['megamillions']][i] ).appendTo('#megamillionsnums');
+				}
+			}
+			if (savedNums[lotto['cash6']].length && (savedNums[lotto['cash6']].length > 0)) {
+				for (var i=0; i<savedNums[lotto['cash6']].length; i++) {
+					$("<textarea rows='3' cols='20' />").val( savedNums[lotto['cash6']][i].replace(/\//g, "\n") ).appendTo('#cash6nums');
+				}
+			}
+		}
+		else {
+			// add inputs
+			for (var i=0; i<3; i++) {
+				$("<input type='text' />").appendTo('#powerballnums');
+			}
+			for (var i=0; i<10; i++) {
+				$("<input type='text' />").appendTo('#palmetto5nums');
+			}
+			for (var i=0; i<2; i++) {
+				$("<input type='text' />").appendTo('#megamillionsnums');
+			}
+			for (var i=0; i<2; i++) {
+				$("<textarea rows='3' cols='20' />").appendTo('#cash6nums');
+			}
+			
+			savedNums[lotto['powerball']] = new Array();
+			savedNums[lotto['megamillions']] = new Array();
+			savedNums[lotto['palmetto5']] = new Array();
+			savedNums[lotto['cash6']] = new Array();
+			
+			switchPanes();
+		}
+	}
+	
+	function saveNumbers() {
+		var val;
+		savedNums[lotto['powerball']] = new Array();
+		$('#powerballnums input').each(function() {
+			val = $.trim( $(this).val() );
+			if (val != '') {
+				savedNums[lotto['powerball']].push(val);
+			}
+		});
+		
+		createCookie('pball', savedNums[lotto['powerball']].join('&'), 1000);
+		
+		savedNums[lotto['palmetto5']] = new Array();
+		$('#palmetto5nums input').each(function() {
+			val = $.trim( $(this).val() );
+			if (val != '') {
+				savedNums[lotto['palmetto5']].push(val);
+			}
+		});
+
+		createCookie('palmetto5', savedNums[lotto['palmetto5']].join('&'), 1000);
+
+		savedNums[lotto['cash6']] = new Array();
+		$('#cash6nums textarea').each(function() {
+			val = $.trim( $(this).val() );
+			if (val != '') {
+				savedNums[lotto['cash6']].push(val.replace(/\n/g, '/'));
+			}
+		});
+
+		createCookie('cash6', savedNums[lotto['cash6']].join('&'), 1000);
+
+		savedNums[lotto['megamillions']] = new Array();
+		$('#megamillionsnums input').each(function() {
+			val = $.trim( $(this).val() );
+			if (val != '') {
+				savedNums[lotto['megamillions']].push(val);
+			}
+		});
+
+		createCookie('megamillions', savedNums[lotto['megamillions']].join('&'), 1000);
+
+		switchPanes();
+		checkNumbers();
+	}
+	
+	function loadNumbers() {
+		var str = readCookie('pball');
+		if (str) {
+			savedNums[lotto['powerball']] = str.split('&');
+		}
+		
+		str = readCookie('megamillions');
+		if (str) {
+			savedNums[lotto['megamillions']] = str.split('&');
+		}
+		
+		str = readCookie('cash6');
+		if (str) {
+			savedNums[lotto['cash6']] = str.split('&');
+		}
+		
+		str = readCookie('palmetto5');
+		if (str) {
+			savedNums[lotto['palmetto5']] = str.split('&');
+		}
+		
+		return (str) ? true : false;
+	}
+
+	function checkNumbers() {
+		var numbers, winningNumbers = new Array();;
+		
+		if (!$.browser.msie) {
+			netscape.security.PrivilegeManager.enablePrivilege("UniversalBrowserRead");
+		}
+
+		jQuery.get("http://sceducationlottery.com/games2/3winningnumbers_powerball.asp", undefined,
+			function(data, textStatus) {
+				var msg = new Array();
+				var div = document.createElement("div");
+				div.innerHTML = data;
+				
+				numbers = jQuery("td:contains(' - ')", div);
+				$("#powerball").html(numbers.eq(0).html()); 
+				winningNumbers[lotto['powerball']] = numbers.eq(0).text().match(/\d+/g);
+				
+				var card = 1;
+				// check Powerball against winning numbers
+				savedNums[lotto['powerball']].forEach(function(cardNums) {
+					var tmp = cardNums.match(/\d+/g).slice(0, 5);
+					var winners = tmp.filter(function(el) {
+						return winningNumbers[lotto['powerball']].slice(0, 5).indexOf(el) > -1;
+					})
+					
+					if (winners.length > 0) {
+						var str = 'Card '+card+': '+winners.length + ' numbers [' + winners.join(', ') + ']';
+						if (winningNumbers[lotto['powerball']][5] == cardNums.match(/\d+/g)[5]) {
+							str += ' + powerball!';
+						}
+						msg.push(str);
+					}
+					else if (winningNumbers[lotto['powerball']][5] == cardNums.match(/\d+/g)[5]) {
+						msg.push('Card '+card+': powerball');
+					}
+					card++;
+				});
+				
+				if (msg.length > 0) {
+					$('#powerballw').html( $("<div class='winners'></div>").html( msg.join('<br />') ) );
+				}
+			}
+		);
+		
+		jQuery.get("http://www.sceducationlottery.com/games2/3winningnumbers_megamillions.asp", undefined,
+			function(data, textStatus) {
+				var msg = new Array();
+				var div = document.createElement("div");
+				div.innerHTML = data;
+				
+				numbers = jQuery("td:contains('/  Megaplier')", div);
+				//alert(numbers.eq(0).text());
+				$("#megamillions").html(numbers.eq(0).text()); 
+				winningNumbers[lotto['megamillions']] = numbers.eq(0).text().match(/\d+/g);
+		
+				var card = 1;
+				// check MegaMatch6 against winning numbers
+				savedNums[lotto['megamillions']].forEach(function(cardNums) {
+					var tmp = cardNums.match(/\d+/g).slice(0, 5);
+					var winners = tmp.filter(function(el) {
+						return winningNumbers[lotto['megamillions']].slice(0, 5).indexOf(el) > -1;
+					})
+					
+					if (winners.length > 0) {
+						var str = 'Card '+card+': '+winners.length + ' numbers [' + winners.join(', ') + ']';
+						if (winningNumbers[lotto['megamillions']][5] == cardNums.match(/\d+/g)[5]) {
+							str += ' + MegaBall!';
+						}
+						msg.push(str);
+					}
+					else if (winningNumbers[lotto['megamillions']][5] == cardNums.match(/\d+/g)[5]) {
+						msg.push('Card '+card+': MegaBall');
+					}
+					card++;
+				});
+		
+				if (msg.length > 0) {
+					$('#megamillionsw').html( $("<div class='winners'></div>").html( msg.join('<br />') ) );
+				}
+			}
+		);
+
+		jQuery.get("http://sceducationlottery.com/games2/3winningnumbers_cash5.asp", undefined,
+			function(data, textStatus) {
+				var msg3 = new Array();
+				var div = document.createElement("div");
+				div.innerHTML = data;
+				
+				numbers= jQuery("td[colspan='7'] strong", div);
+				$("#palmetto5").html(numbers.eq(1).html()); 
+				winningNumbers[lotto['palmetto5']] = numbers.eq(1).text().match(/\d+/g);
+
+				var card = 1;
+				// check Palmetto5 against winning numbers
+				savedNums[lotto['palmetto5']].forEach(function(cardNums) {
+					var winners = cardNums.match(/\d+/g).filter(function(el) {
+						return winningNumbers[lotto['palmetto5']].slice(0, 5).indexOf(el) > -1;
+					});
+					
+					if (winners.length > 0) {
+						var str = 'Card '+card+': '+winners.length + ' [' + winners.join(', ') + ']';
+						msg3.push(str);
+					}
+					card++;
+				});
+				
+				if (msg3.length > 0) {
+					$('#palmetto5w').html( $("<div class='winners'></div>").html( msg3.join('<br />') ) );
+				}
+			}
+		);
+
+		jQuery.get("http://sceducationlottery.com/games2/3winningnumbers_cash6.asp", undefined,
+			function(data, textStatus) {
+				var msg3 = new Array();
+				var div = document.createElement("div");
+				div.innerHTML = data;
+				
+				numbers= jQuery("td:contains(' - ')", div);
+				$("#cash6").html(numbers.eq(0).html()); 
+				winningNumbers[lotto['cash6']] = numbers.eq(0).text().match(/\d+/gm);
+
+				var card = 1;
+				// check Cash6 against winning numbers
+				savedNums[lotto['cash6']].forEach(function(cardNums) {
+				        cardNums = cardNums.replace(/\//g, "\n");
+				        allLines = cardNums.match(/\d+/g);
+
+					var winners = allLines.filter(function(el) {
+						return winningNumbers[lotto['cash6']].slice(0, 6).indexOf(el) > -1;
+					});
+					
+					if (winners.length > 0) {
+						var str = 'Card '+card+': '+winners.length + ' [' + winners.join(', ') + ']';
+						msg3.push(str);
+					}
+					card++;
+				});
+				
+				if (msg3.length > 0) {
+					$('#cash6w').html( $("<div class='winners'></div>").html( msg3.join('<br />') ) );
+				}
+			}
+		);
+
+		var br = '<br />';
+
+		$('#export').html( [savedNums[0].join(br), savedNums[1].join(br), savedNums[2].join(br), savedNums[3].join(br)].join(br+br) );
+	}
+	
+	$(function() {
+		setup();
+		
+		if ($('#winPane').hasClass('show')) {
+			checkNumbers();
+		}
+	});
+</script>
+</head>
+<body>
+<div id="winPane" class="show">
+	<div><b>Powerball:</b> <span id="powerball"></span> <span id="powerballw"></span></div>
+	<div><b>MegaMillions:</b> <span id="megamillions"></span> <span id="megamillionsw"></span></div>
+	<div><b>Palmetto Cash 5:</b> <span id="palmetto5"></span> <span id="palmetto5w"></span></div>
+	<div><b>Carolina Cash 6:</b> <span id="cash6"></span> <span id="cash6w"></span></div>
+	<div><input type="button" value="Edit Numbers" onclick="switchPanes();" /></div>
+	<div><b>Export:</b><br /> <span id="export"></span></div>
+</div>
+<div id="numbersPane" class="hide">
+	<div id="powerballnums"><b>Powerball:</b> (<a href="#" onclick="addInput('powerballnums');">add new card</a>) (<a href="#" onclick="removeInput('powerballnums');">remove card</a>)<br/></div>
+	<div id="megamillionsnums"><b>MegaMillions:</b> (<a href="#" onclick="addInput('megamillionsnums');">add new card</a>) (<a href="#" onclick="removeInput('megamillionsnums');">remove card</a>)<br/></div>
+	<div id="palmetto5nums"><b>Palmetto Cash 5:</b> (<a href="#" onclick="addInput('palmetto5nums');">add new card</a>) (<a href="#" onclick="removeInput('palmetto5nums');">remove card</a>)<br/></div>
+	<div id="cash6nums"><b>Carolina Cash 6:</b> (<a href="#" onclick="addInput('cash6nums');">add new card</a>) (<a href="#" onclick="removeInput('cash6nums');">remove card</a>)<br/></div>
+	<div><input type="button" value="Save Numbers" onclick="saveNumbers();" /></div>
+</div>
+</body>
+</html>
